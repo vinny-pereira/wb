@@ -8,11 +8,10 @@ class Whiteboard extends HTMLCanvasElement {
         this.colorUniformLocation = null;
         this.buffer = null;
         this.drawing = false;
-        this.lines = [];
         this.strokes = [];
+        this.currentStrokeIndex = null;
         this.lineWidth = 5;
         this.strokeStyle = [0, 0, 0, 1];
-        this.currentLineIndex = null;
         this.socket = null;
         this.id = 'whiteboard';
         this.width = window.innerWidth;
@@ -128,16 +127,16 @@ class Whiteboard extends HTMLCanvasElement {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
     }
     drawLines() {
-        this.lines.forEach(line => {
-            if (line.length < 4)
+        this.strokes.forEach(stroke => {
+            if (!stroke.points || stroke.points.length < 4)
                 return;
-            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(line), this.gl.STATIC_DRAW);
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(stroke.points), this.gl.STATIC_DRAW);
             this.gl.vertexAttribPointer(this.positionAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
             this.gl.enableVertexAttribArray(this.positionAttributeLocation);
             this.gl.uniform2f(this.resolutionUniformLocation, this.width, this.height);
-            this.gl.uniform4fv(this.colorUniformLocation, this.strokeStyle);
-            this.gl.lineWidth(this.lineWidth);
-            this.gl.drawArrays(this.gl.LINE_STRIP, 0, line.length / 2);
+            this.gl.uniform4fv(this.colorUniformLocation, stroke.color);
+            this.gl.lineWidth(stroke.width);
+            this.gl.drawArrays(this.gl.LINE_STRIP, 0, stroke.points.length / 2);
         });
     }
     onMouseDown(e) {
@@ -145,13 +144,25 @@ class Whiteboard extends HTMLCanvasElement {
         const rect = this.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        this.currentLineIndex = this.lines.length;
-        this.lines.push([x, y]);
+        this.currentStrokeIndex = this.strokes.length;
+        this.strokes.push({
+            color: this.strokeStyle,
+            width: this.lineWidth,
+            id: this.guid(),
+            points: [x, y]
+        });
+    }
+    guid() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            let r = Math.random() * 16 | 0;
+            let v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
     onMouseUp() {
         if (this.drawing) {
             this.drawing = false;
-            this.currentLineIndex = null;
+            this.currentStrokeIndex = null;
         }
     }
     onMouseMove(e) {
@@ -160,15 +171,15 @@ class Whiteboard extends HTMLCanvasElement {
         const rect = this.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        if (this.currentLineIndex === null)
+        if (this.currentStrokeIndex === null)
             return;
-        this.lines[this.currentLineIndex].push(x, y);
+        this.strokes[this.currentStrokeIndex].points.push(x, y);
         this.drawLines();
         if (!this.socket)
             return;
         this.socket.send(JSON.stringify({
             type: 'draw',
-            data: this.lines[this.currentLineIndex]
+            data: this.strokes[this.currentStrokeIndex].points
         }));
     }
     connectedCallback() {
@@ -180,7 +191,7 @@ class Whiteboard extends HTMLCanvasElement {
         this.socket.addEventListener('message', (event) => {
             const message = JSON.parse(event.data);
             if (message.type === 'draw') {
-                this.lines.push(message.data);
+                this.strokes.push(message.data);
                 this.drawLines();
             }
         });

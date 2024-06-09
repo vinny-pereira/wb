@@ -1,6 +1,6 @@
 type Stroke = {
     points: number[],
     id: string,
-    color: string,
+    color: number[],
     width: number
 }
