@@ -131,3 +131,6 @@ dist
 
 # typescript
 tsconfig.json
+
+# execution scripts
+copy_files.sh

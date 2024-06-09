@@ -7,6 +7,8 @@ class Whiteboard extends HTMLCanvasElement {
     private buffer: WebGLBuffer | null = null;
     private drawing: boolean = false;
     private lines: number[][] = [];
+    private strokes: Stroke[] = [];
+    private currentStrokeIndex: number | null = null;
     private lineWidth: number = 5; 
     private strokeStyle: number[] = [0, 0, 0, 1];
     private currentLineIndex: number | null = null;
@@ -31,11 +33,61 @@ class Whiteboard extends HTMLCanvasElement {
         this.addEventListener('mouseup', this.onMouseUp.bind(this));
         this.addEventListener('mousemove', this.onMouseMove.bind(this));
         
+        this.createToolbar();
     }
 
     static get observedAttributes(): string[]{
         return ['connectionDomain']
     }
+    
+    private createToolbar() {
+        const toolbar = document.createElement('div');
+        toolbar.style.position = 'absolute';
+        toolbar.style.top = '10px';
+        toolbar.style.left = '10px';
+        toolbar.style.display = 'flex';
+        toolbar.style.alignItems = 'center';
+
+        const lineWidthLabel = document.createElement('label');
+        lineWidthLabel.textContent = 'Line Width:';
+        toolbar.appendChild(lineWidthLabel);
+
+        const lineWidthInput = document.createElement('input');
+        lineWidthInput.type = 'number';
+        lineWidthInput.min = '1';
+        lineWidthInput.max = '20';
+        lineWidthInput.value = this.lineWidth.toString();
+        lineWidthInput.addEventListener('change', () => {
+            this.lineWidth = parseFloat(lineWidthInput.value);
+        });
+        toolbar.appendChild(lineWidthInput);
+
+        const colorLabel = document.createElement('label');
+        colorLabel.textContent = 'Color:';
+        toolbar.appendChild(colorLabel);
+
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = `#${this.strokeStyle.slice(0, 3).map(c => {
+          const hex = Math.round(c * 255).toString(16);
+          return hex.length === 1 ? '0' + hex : hex;
+        }).join('')}`;
+        colorInput.addEventListener('change', () => {
+            const hexColor = colorInput.value.substring(1);
+            this.strokeStyle = [
+                parseInt(hexColor.substring(0, 2), 16) / 255,
+                parseInt(hexColor.substring(2, 4), 16) / 255,
+                parseInt(hexColor.substring(4, 6), 16) / 255,
+                1
+            ];
+        });
+        toolbar.appendChild(colorInput);
+
+        const parent: HTMLElement = this.parentElement || document.body;
+
+        parent.appendChild(toolbar);
+    }
+
 
     private initShaderProgram() {
         const vertexShaderSource = `
@@ -186,4 +238,4 @@ class Whiteboard extends HTMLCanvasElement {
     }
 }
 
-customElements.define("white-board", Whiteboard, { extends: 'canvas' });
+customElements.define("wb-whiteboard", Whiteboard, { extends: 'canvas' });
