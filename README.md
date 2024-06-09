@@ -1,2 +1,2 @@
 # wb
-a web component for HDA focused applications
+a whiteboard web component for HDA focused applications
