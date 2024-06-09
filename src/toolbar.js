@@ -1,37 +1,61 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Toolbar = void 0;
 class Toolbar extends HTMLElement {
     constructor() {
         super();
-        this.loadTemplate();
+        this.attachShadow({ mode: 'open' });
     }
     connectedCallback() {
-        var _a, _b;
-        (_a = this.querySelector('#line-width')) === null || _a === void 0 ? void 0 : _a.addEventListener('change', (event) => {
+        this.createToolbar();
+        console.log("toolbar created");
+    }
+    createToolbar() {
+        const toolbar = document.createElement('div');
+        toolbar.style.position = 'absolute';
+        toolbar.style.top = '10px';
+        toolbar.style.left = '10px';
+        toolbar.style.display = 'flex';
+        toolbar.style.alignItems = 'center';
+        toolbar.style.background = '#fff';
+        toolbar.style.padding = '10px';
+        toolbar.style.border = '1px solid #ccc';
+        const lineWidthLabel = document.createElement('label');
+        lineWidthLabel.textContent = 'Line Width:';
+        lineWidthLabel.style.marginRight = '10px';
+        toolbar.appendChild(lineWidthLabel);
+        const lineWidthInput = document.createElement('input');
+        lineWidthInput.type = 'number';
+        lineWidthInput.min = '1';
+        lineWidthInput.max = '20';
+        lineWidthInput.value = '5';
+        lineWidthInput.style.width = '50px';
+        lineWidthInput.style.marginRight = '10px';
+        lineWidthInput.addEventListener('change', (event) => {
             const lineWidth = event.target.value;
             this.dispatchEvent(new CustomEvent('lineWidthChange', { detail: { lineWidth: parseFloat(lineWidth) } }));
         });
-        (_b = this.querySelector('#color')) === null || _b === void 0 ? void 0 : _b.addEventListener('change', (event) => {
+        toolbar.appendChild(lineWidthInput);
+        const colorLabel = document.createElement('label');
+        colorLabel.textContent = 'Color:';
+        colorLabel.style.marginRight = '10px';
+        toolbar.appendChild(colorLabel);
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = '#000000';
+        colorInput.addEventListener('change', (event) => {
             const color = event.target.value;
             this.dispatchEvent(new CustomEvent('colorChange', { detail: { color } }));
         });
-    }
-    loadTemplate() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield fetch('toolbar.js.html');
-            const text = yield response.text();
-            this.innerHTML = text;
+        toolbar.appendChild(colorInput);
+        const squareButton = document.createElement('button');
+        squareButton.textContent = 'Create Square';
+        squareButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.dispatchEvent(new CustomEvent('rectModeActivated'));
         });
+        toolbar.appendChild(squareButton);
+        this.shadowRoot.appendChild(toolbar);
     }
 }
 exports.Toolbar = Toolbar;

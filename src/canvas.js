@@ -1,4 +1,6 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+require("./toolbar");
 class Whiteboard extends HTMLCanvasElement {
     constructor() {
         super();
@@ -35,37 +37,14 @@ class Whiteboard extends HTMLCanvasElement {
         return ['connectionDomain'];
     }
     createToolbar() {
-        const toolbar = document.createElement('div');
-        toolbar.style.position = 'absolute';
-        toolbar.style.top = '10px';
-        toolbar.style.left = '10px';
-        toolbar.style.display = 'flex';
-        toolbar.style.alignItems = 'center';
-        const lineWidthLabel = document.createElement('label');
-        lineWidthLabel.textContent = 'Line Width:';
-        toolbar.appendChild(lineWidthLabel);
-        const lineWidthInput = document.createElement('input');
-        lineWidthInput.type = 'number';
-        lineWidthInput.min = '1';
-        lineWidthInput.max = '20';
-        lineWidthInput.value = this.lineWidth.toString();
-        lineWidthInput.addEventListener('change', (e) => {
-            e.stopPropagation();
-            this.lineWidth = parseFloat(lineWidthInput.value);
+        const toolbar = document.createElement('wb-toolbar');
+        toolbar.addEventListener('lineWidthChange', (event) => {
+            const customEvent = event;
+            this.lineWidth = customEvent.detail.lineWidth;
         });
-        toolbar.appendChild(lineWidthInput);
-        const colorLabel = document.createElement('label');
-        colorLabel.textContent = 'Color:';
-        toolbar.appendChild(colorLabel);
-        const colorInput = document.createElement('input');
-        colorInput.type = 'color';
-        colorInput.value = `#${this.strokeStyle.slice(0, 3).map(c => {
-            const hex = Math.round(c * 255).toString(16);
-            return hex.length === 1 ? '0' + hex : hex;
-        }).join('')}`;
-        colorInput.addEventListener('change', (e) => {
-            e.stopPropagation();
-            const hexColor = colorInput.value.substring(1);
+        toolbar.addEventListener('colorChange', (event) => {
+            const customEvent = event;
+            const hexColor = customEvent.detail.color.substring(1);
             this.strokeStyle = [
                 parseInt(hexColor.substring(0, 2), 16) / 255,
                 parseInt(hexColor.substring(2, 4), 16) / 255,
@@ -73,14 +52,9 @@ class Whiteboard extends HTMLCanvasElement {
                 1
             ];
         });
-        toolbar.appendChild(colorInput);
-        const squareButton = document.createElement('button');
-        squareButton.textContent = 'Create Square';
-        squareButton.addEventListener('click', (e) => {
-            e.stopPropagation();
+        toolbar.addEventListener('rectModeActivated', () => {
             this.mode = 1 /* CanvasMode.Square */;
         });
-        toolbar.appendChild(squareButton);
         const parent = this.parentElement || document.body;
         parent.appendChild(toolbar);
     }
