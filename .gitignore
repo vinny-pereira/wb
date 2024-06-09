@@ -134,3 +134,7 @@ tsconfig.json
 
 # execution scripts
 copy_files.sh
+
+# webpack
+wb.js
+webpack.config.js
