@@ -10,9 +10,12 @@ class Whiteboard extends HTMLCanvasElement {
         this.drawing = false;
         this.strokes = [];
         this.currentStrokeIndex = null;
+        this.rects = [];
+        this.currentRectIndex = null;
         this.lineWidth = 5;
         this.strokeStyle = [0, 0, 0, 1];
         this.socket = null;
+        this.mode = 0 /* CanvasMode.Line */;
         this.id = 'whiteboard';
         this.width = window.innerWidth;
         this.height = window.innerHeight;
@@ -46,7 +49,8 @@ class Whiteboard extends HTMLCanvasElement {
         lineWidthInput.min = '1';
         lineWidthInput.max = '20';
         lineWidthInput.value = this.lineWidth.toString();
-        lineWidthInput.addEventListener('change', () => {
+        lineWidthInput.addEventListener('change', (e) => {
+            e.stopPropagation();
             this.lineWidth = parseFloat(lineWidthInput.value);
         });
         toolbar.appendChild(lineWidthInput);
@@ -59,7 +63,8 @@ class Whiteboard extends HTMLCanvasElement {
             const hex = Math.round(c * 255).toString(16);
             return hex.length === 1 ? '0' + hex : hex;
         }).join('')}`;
-        colorInput.addEventListener('change', () => {
+        colorInput.addEventListener('change', (e) => {
+            e.stopPropagation();
             const hexColor = colorInput.value.substring(1);
             this.strokeStyle = [
                 parseInt(hexColor.substring(0, 2), 16) / 255,
@@ -69,6 +74,13 @@ class Whiteboard extends HTMLCanvasElement {
             ];
         });
         toolbar.appendChild(colorInput);
+        const squareButton = document.createElement('button');
+        squareButton.textContent = 'Create Square';
+        squareButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.mode = 1 /* CanvasMode.Square */;
+        });
+        toolbar.appendChild(squareButton);
         const parent = this.parentElement || document.body;
         parent.appendChild(toolbar);
     }
@@ -138,19 +150,53 @@ class Whiteboard extends HTMLCanvasElement {
             this.gl.lineWidth(stroke.width);
             this.gl.drawArrays(this.gl.LINE_STRIP, 0, stroke.points.length / 2);
         });
+        this.rects.forEach(rect => {
+            if (rect.finalX === undefined || rect.finalY === undefined)
+                return;
+            const x1 = rect.initialX;
+            const y1 = rect.initialY;
+            const x2 = rect.finalX;
+            const y2 = rect.finalY;
+            const points = [
+                x1, y1,
+                x2, y1,
+                x2, y2,
+                x1, y2,
+                x1, y1
+            ];
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(points), this.gl.STATIC_DRAW);
+            this.gl.vertexAttribPointer(this.positionAttributeLocation, 2, this.gl.FLOAT, false, 0, 0);
+            this.gl.enableVertexAttribArray(this.positionAttributeLocation);
+            this.gl.uniform2f(this.resolutionUniformLocation, this.width, this.height);
+            this.gl.uniform4fv(this.colorUniformLocation, rect.color);
+            this.gl.lineWidth(rect.strokeWidth);
+            this.gl.drawArrays(this.gl.LINE_STRIP, 0, points.length / 2);
+        });
     }
     onMouseDown(e) {
         this.drawing = true;
         const rect = this.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        this.currentStrokeIndex = this.strokes.length;
-        this.strokes.push({
-            color: this.strokeStyle,
-            width: this.lineWidth,
-            id: this.guid(),
-            points: [x, y]
-        });
+        if (this.mode === 0 /* CanvasMode.Line */) {
+            this.currentStrokeIndex = this.strokes.length;
+            this.strokes.push({
+                color: this.strokeStyle,
+                width: this.lineWidth,
+                id: this.guid(),
+                points: [x, y]
+            });
+        }
+        if (this.mode === 1 /* CanvasMode.Square */) {
+            this.currentRectIndex = this.rects.length;
+            this.rects.push({
+                initialX: x,
+                initialY: y,
+                color: this.strokeStyle,
+                strokeWidth: this.lineWidth,
+                id: this.guid()
+            });
+        }
     }
     guid() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -163,6 +209,7 @@ class Whiteboard extends HTMLCanvasElement {
         if (this.drawing) {
             this.drawing = false;
             this.currentStrokeIndex = null;
+            this.currentRectIndex = null;
         }
     }
     onMouseMove(e) {
@@ -171,11 +218,19 @@ class Whiteboard extends HTMLCanvasElement {
         const rect = this.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        if (this.currentStrokeIndex === null)
-            return;
-        this.strokes[this.currentStrokeIndex].points.push(x, y);
+        if (this.mode === 0 /* CanvasMode.Line */) {
+            if (this.currentStrokeIndex === null)
+                return;
+            this.strokes[this.currentStrokeIndex].points.push(x, y);
+        }
+        if (this.mode === 1 /* CanvasMode.Square */) {
+            if (!this.currentRectIndex)
+                return;
+            this.rects[this.currentRectIndex].finalX = x;
+            this.rects[this.currentRectIndex].finalY = y;
+        }
         this.drawLines();
-        if (!this.socket)
+        if (!this.socket || !this.currentStrokeIndex)
             return;
         this.socket.send(JSON.stringify({
             type: 'draw',
