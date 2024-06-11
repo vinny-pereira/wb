@@ -112,7 +112,7 @@ class Whiteboard extends HTMLCanvasElement {
         this.buffer = this.gl.createBuffer();
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
     }
-    drawLines() {
+    draw() {
         this.strokes.forEach(stroke => {
             if (!stroke.points || stroke.points.length < 4)
                 return;
@@ -198,12 +198,12 @@ class Whiteboard extends HTMLCanvasElement {
             this.strokes[this.currentStrokeIndex].points.push(x, y);
         }
         if (this.mode === 1 /* CanvasMode.Square */) {
-            if (!this.currentRectIndex)
+            if (this.currentRectIndex === null)
                 return;
             this.rects[this.currentRectIndex].finalX = x;
             this.rects[this.currentRectIndex].finalY = y;
         }
-        this.drawLines();
+        this.draw();
         if (!this.socket || !this.currentStrokeIndex)
             return;
         this.socket.send(JSON.stringify({
@@ -221,7 +221,7 @@ class Whiteboard extends HTMLCanvasElement {
             const message = JSON.parse(event.data);
             if (message.type === 'draw') {
                 this.strokes.push(message.data);
-                this.drawLines();
+                this.draw();
             }
         });
     }
