@@ -1,6 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 require("./toolbar");
+const canvas_utils_1 = require("./utils/canvas_utils");
+const vertex_shader_vert_1 = __importDefault(require("./shaders/vertex_shader.vert"));
+const fragment_shader_frag_1 = __importDefault(require("./shaders/fragment_shader.frag"));
 class Whiteboard extends HTMLCanvasElement {
     constructor() {
         super();
@@ -18,6 +24,7 @@ class Whiteboard extends HTMLCanvasElement {
         this.strokeStyle = [0, 0, 0, 1];
         this.socket = null;
         this.mode = 0 /* CanvasMode.Line */;
+        this.cornerRadius = 10;
         this.id = 'whiteboard';
         this.width = window.innerWidth;
         this.height = window.innerHeight;
@@ -59,35 +66,15 @@ class Whiteboard extends HTMLCanvasElement {
         parent.appendChild(toolbar);
     }
     initShaderProgram() {
-        const vertexShaderSource = `
-            attribute vec2 a_position;
-
-            uniform vec2 u_resolution;
-
-            void main() {
-                vec2 zeroToOne = a_position / u_resolution;
-                vec2 zeroToTwo = zeroToOne * 2.0;
-                vec2 clipSpace = zeroToTwo - 1.0;
-
-                gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-            }
-        `;
-        const fragmentShaderSource = `
-            precision mediump float;
-
-            uniform vec4 u_color;
-
-            void main() {
-                gl_FragColor = u_color;
-            }
-        `;
-        const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
-        const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+        const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertex_shader_vert_1.default);
+        const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragment_shader_frag_1.default);
         this.program = this.createProgram(vertexShader, fragmentShader);
         this.positionAttributeLocation = this.gl.getAttribLocation(this.program, "a_position");
         this.resolutionUniformLocation = this.gl.getUniformLocation(this.program, "u_resolution");
         this.colorUniformLocation = this.gl.getUniformLocation(this.program, "u_color");
+        const radiusUniformLocation = this.gl.getUniformLocation(this.program, "u_radius");
         this.gl.useProgram(this.program);
+        this.gl.uniform1f(radiusUniformLocation, this.cornerRadius / this.width);
     }
     createShader(type, source) {
         const shader = this.gl.createShader(type);
@@ -113,6 +100,9 @@ class Whiteboard extends HTMLCanvasElement {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
     }
     draw() {
+        let resize = canvas_utils_1.CanvasUtils.resizeCanvasToDisplaySize(this.gl.canvas);
+        if (resize)
+            this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
         this.strokes.forEach(stroke => {
             if (!stroke.points || stroke.points.length < 4)
                 return;

@@ -1,4 +1,7 @@
 import './toolbar'
+import { CanvasUtils } from './utils/canvas_utils'
+import vertexShaderSource from './shaders/vertex_shader.vert'
+import fragmentShaderSource from './shaders/fragment_shader.frag'
 
 class Whiteboard extends HTMLCanvasElement {
     private gl: WebGLRenderingContext;
@@ -70,30 +73,6 @@ class Whiteboard extends HTMLCanvasElement {
 
 
     private initShaderProgram() {
-        const vertexShaderSource = `
-            attribute vec2 a_position;
-
-            uniform vec2 u_resolution;
-
-            void main() {
-                vec2 zeroToOne = a_position / u_resolution;
-                vec2 zeroToTwo = zeroToOne * 2.0;
-                vec2 clipSpace = zeroToTwo - 1.0;
-
-                gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-            }
-        `;
-
-        const fragmentShaderSource = `
-            precision mediump float;
-
-            uniform vec4 u_color;
-
-            void main() {
-                gl_FragColor = u_color;
-            }
-        `;
-
         const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
         const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
 
@@ -136,6 +115,10 @@ class Whiteboard extends HTMLCanvasElement {
     }
 
     private draw() {
+        let resize = CanvasUtils.resizeCanvasToDisplaySize(this.gl.canvas as HTMLCanvasElement);
+        if(resize)
+            this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+
         this.strokes.forEach(stroke => {
             if (!stroke.points || stroke.points.length < 4) return;
 
